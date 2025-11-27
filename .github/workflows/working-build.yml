@@ -1,0 +1,78 @@
+name: Working APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -qq -y \
+          git zip unzip openjdk-8-jdk python3-pip \
+          autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev \
+          cmake libffi-dev libssl-dev \
+          build-essential python3-dev \
+          ccache
+    
+    - name: Setup Java
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+    
+    - name: Install Python dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install buildozer==1.4.0
+        pip3 install cython==0.29.33
+        pip3 install kivy==2.1.0
+        pip3 install flask==2.3.3
+        pip3 install werkzeug==2.3.7
+        pip3 install pyjnius==1.4.2
+        pip3 install requests==2.31.0
+    
+    - name: Cache Buildozer
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+    
+    - name: Build APK
+      run: |
+        # Accept all Android licenses
+        mkdir -p ~/.android
+        echo 'count=0' > ~/.android/repositories.cfg
+        
+        # Build with verbose output
+        buildozer android debug --verbose
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: wifishare-apk
+        path: bin/*.apk
+        retention-days: 30
+    
+    - name: Show build info
+      if: always()
+      run: |
+        echo "Build completed!"
+        ls -la bin/ || echo "No bin directory found"
+        find . -name "*.apk" -type f || echo "No APK files found"
