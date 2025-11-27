@@ -21,7 +21,7 @@ jobs:
         python-version: '3.9'
     
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -44,13 +44,13 @@ jobs:
         pip install buildozer cython
     
     - name: Cache Buildozer global directory
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .buildozer_global
         key: buildozer-global-${{ hashFiles('buildozer.spec') }}
     
     - name: Cache Buildozer directory
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .buildozer
         key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
@@ -71,7 +71,7 @@ jobs:
         buildozer android debug
     
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wifishare-debug-apk
         path: bin/*.apk
