@@ -1,0 +1,12 @@
+# Kivy framework cho Android UI
+kivy==2.1.0
+
+# Flask web server
+flask==2.3.3
+werkzeug==2.3.7
+
+# Android specific
+pyjnius==1.4.2
+
+# Utilities
+requests==2.31.0

@@ -1,0 +1,135 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y git zip unzip openjdk-8-jdk python3-pip
+        sudo apt install -y autoconf libtool pkg-config zlib1g-dev
+        sudo apt install -y libncurses5-dev libncursesw5-dev libtinfo5
+        sudo apt install -y cmake libffi-dev libssl-dev
+        sudo apt install -y build-essential libssl-dev libffi-dev python3-dev
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install buildozer cython
+    
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v3
+      with:
+        path: .buildozer_global
+        key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+    
+    - name: Cache Buildozer directory
+      uses: actions/cache@v3
+      with:
+        path: .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+    
+    - name: Build APK
+      run: |
+        # Set buildozer global directory
+        export BUILDOZER_GLOBAL_DIR="$(pwd)/.buildozer_global"
+        
+        # Initialize buildozer if needed
+        if [ ! -f "buildozer.spec" ]; then
+          buildozer init
+        fi
+        
+        # Build debug APK
+        buildozer android debug
+    
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: wifishare-debug-apk
+        path: bin/*.apk
+        retention-days: 30
+    
+    - name: Get APK info
+      run: |
+        if [ -f bin/*.apk ]; then
+          APK_FILE=$(ls bin/*.apk | head -1)
+          APK_SIZE=$(du -h "$APK_FILE" | cut -f1)
+          echo "APK_FILE=$APK_FILE" >> $GITHUB_ENV
+          echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
+          echo "✅ APK built successfully: $APK_FILE ($APK_SIZE)"
+        else
+          echo "❌ No APK file found"
+          exit 1
+        fi
+    
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: WiFi Share v${{ github.ref }}
+        body: |
+          ## WiFi File Share Android App
+          
+          ### Tính năng
+          - 📱 Giao diện Android native
+          - 🌐 Web server Flask tích hợp
+          - 📁 Duyệt và tải file từ storage
+          - 🔐 Xác thực đăng nhập
+          - 📶 Tự động phát hiện IP
+          - 🔔 Notifications và sharing
+          
+          ### Cài đặt
+          1. Tải file APK
+          2. Bật "Unknown sources" trong Settings
+          3. Cài đặt APK
+          4. Cấp permissions khi được yêu cầu
+          
+          ### Sử dụng
+          - Username: `admin`
+          - Password: `123456` (đổi trong code trước khi build)
+          
+          **⚠️ Lưu ý bảo mật**: Đổi username/password mặc định!
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Asset (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.APK_FILE }}
+        asset_name: wifishare-${{ github.ref_name }}.apk
+        asset_content_type: application/vnd.android.package-archive
