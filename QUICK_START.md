@@ -24,43 +24,38 @@ wifishare/
 └── .github/workflows/   # ☁️  GitHub Actions
 ```
 
-## 🎯 3 cách build APK
+## 🎯 Build APK
 
-### 1️⃣ **Windows (Khuyến nghị: WSL)**
+> **📖 Xem hướng dẫn chi tiết tại [BUILD_GUIDE.md](BUILD_GUIDE.md)**
 
-```bash
-# Chạy setup
-setup.bat
+### ✅ **Phương pháp khuyến nghị: GitHub Actions**
 
-# Cài WSL và build trong Linux environment
-wsl --install Ubuntu
-# Sau đó làm theo hướng dẫn Linux
-```
-
-### 2️⃣ **Linux (Ubuntu/Debian)**
+**Hoạt động trên tất cả hệ điều hành (Windows/Mac/Linux):**
 
 ```bash
-# Setup môi trường
-python3 setup.py
-
-# Build APK
-chmod +x build.sh
-./build.sh
-
-# Hoặc manual:
-buildozer android debug
-```
-
-### 3️⃣ **GitHub Actions (Tự động)**
-
-```bash
-# Push code lên GitHub
+# 1. Push code lên GitHub
 git add .
 git commit -m "WiFi Share Android app"
 git push origin main
 
-# APK sẽ được build tự động và có sẵn trong Artifacts
+# 2. Vào GitHub > Actions > Run workflow "Build WiFi Share APK (Optimized)"
+# 3. Download APK từ Artifacts (~15-30 phút)
 ```
+
+### 🐧 **Local Build (Chỉ Linux/Mac)**
+
+```bash
+# Sử dụng script có sẵn
+./build-local.sh
+
+# Hoặc manual
+pip3 install buildozer
+buildozer android debug
+```
+
+### 🪟 **Windows Users**
+
+**Buildozer không hỗ trợ Windows.** Vui lòng sử dụng **GitHub Actions** (khuyến nghị) hoặc WSL.
 
 ## 📲 Cài đặt và sử dụng
 

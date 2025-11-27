@@ -82,3 +82,5 @@ jobs:
         echo "=== Environment ==="
         echo "JAVA_HOME: $JAVA_HOME"
         java -version
+
+

@@ -70,3 +70,5 @@ jobs:
         echo "Build completed!"
         ls -la bin/ || echo "No bin directory"
         find . -name "*.apk" -type f || echo "No APK files"
+
+

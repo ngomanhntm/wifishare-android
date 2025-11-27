@@ -1,0 +1,143 @@
+name: Build WiFi Share APK (Optimized)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - debug
+        - release
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer cython
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v3
+      with:
+        path: .buildozer_global
+        key: buildozer-global-${{ hashFiles('buildozer.spec') }}-v2
+        restore-keys: |
+          buildozer-global-${{ hashFiles('buildozer.spec') }}-
+          buildozer-global-
+    
+    - name: Cache Buildozer directory
+      uses: actions/cache@v3
+      with:
+        path: .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}-v2
+        restore-keys: |
+          ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}-
+          ${{ runner.os }}-buildozer-
+    
+    - name: Set build environment
+      run: |
+        export BUILDOZER_GLOBAL_DIR="$(pwd)/.buildozer_global"
+        echo "BUILDOZER_GLOBAL_DIR=$BUILDOZER_GLOBAL_DIR" >> $GITHUB_ENV
+        
+        # Set build type
+        if [ "${{ github.event.inputs.build_type }}" = "release" ] || [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          echo "BUILD_TYPE=release" >> $GITHUB_ENV
+        else
+          echo "BUILD_TYPE=debug" >> $GITHUB_ENV
+        fi
+    
+    - name: Build APK
+      run: |
+        echo "Building $BUILD_TYPE APK..."
+        if [ "$BUILD_TYPE" = "release" ]; then
+          buildozer android release
+        else
+          buildozer android debug
+        fi
+    
+    - name: List build output
+      run: |
+        echo "=== Build Output ==="
+        ls -la bin/ || echo "No bin directory found"
+        echo ""
+        echo "=== APK Files ==="
+        find . -name "*.apk" -type f -exec ls -lh {} \;
+        echo ""
+        echo "=== Build Logs ==="
+        find .buildozer -name "*.log" -type f | head -5 | xargs tail -20
+    
+    - name: Rename APK with version info
+      run: |
+        cd bin
+        for apk in *.apk; do
+          if [ -f "$apk" ]; then
+            # Get version from buildozer.spec
+            version=$(grep "^version" ../buildozer.spec | cut -d'=' -f2 | tr -d ' ')
+            # Get short commit hash
+            commit=$(git rev-parse --short HEAD)
+            # Create new filename
+            new_name="wifishare-v${version}-${commit}-${BUILD_TYPE}.apk"
+            mv "$apk" "$new_name"
+            echo "Renamed $apk to $new_name"
+          fi
+        done
+    
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      if: success()
+      with:
+        name: wifishare-apk-${{ env.BUILD_TYPE }}
+        path: bin/*.apk
+        retention-days: 30
+    
+    - name: Upload build logs
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: build-logs-${{ github.run_number }}
+        path: |
+          .buildozer/android/platform/build-*/logs/
+          .buildozer/android/logs/
+        retention-days: 7
+    
+    - name: Create Release (for tags)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: bin/*.apk
+        draft: false
+        prerelease: contains(github.ref, 'beta') || contains(github.ref, 'alpha')
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

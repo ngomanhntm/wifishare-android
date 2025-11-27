@@ -24,3 +24,5 @@ jobs:
         name: simple-kivy-apk
         path: ${{ steps.buildozer.outputs.filename }}
         retention-days: 30
+
+
