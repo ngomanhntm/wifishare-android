@@ -1,0 +1,48 @@
+name: Minimal APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git zip unzip openjdk-8-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential python3-dev
+        
+    - name: Install Python packages
+      run: |
+        pip3 install --upgrade pip
+        pip3 install buildozer
+        pip3 install cython==0.29.33
+        pip3 install kivy[base]==2.1.0
+        pip3 install flask==2.3.3
+        pip3 install werkzeug==2.3.7
+        pip3 install pyjnius==1.4.2
+        pip3 install requests==2.31.0
+        
+    - name: Accept Android licenses
+      run: |
+        mkdir -p ~/.android
+        echo 'count=0' > ~/.android/repositories.cfg
+        
+    - name: Build APK
+      run: |
+        buildozer android debug
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: bin/*.apk
