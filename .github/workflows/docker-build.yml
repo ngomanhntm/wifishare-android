@@ -1,0 +1,66 @@
+name: Docker APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Build APK with Docker
+      run: |
+        # Create Dockerfile
+        cat > Dockerfile << 'EOF'
+        FROM cimg/android:2023.07
+        
+        USER root
+        
+        # Install system dependencies
+        RUN apt-get update && apt-get install -y \
+            python3 python3-pip python3-dev \
+            git zip unzip \
+            autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            cmake libffi-dev libssl-dev \
+            build-essential ccache \
+            && rm -rf /var/lib/apt/lists/*
+        
+        # Install Python packages
+        RUN pip3 install --upgrade pip && \
+            pip3 install buildozer==1.4.0 cython==0.29.33 && \
+            pip3 install kivy==2.1.0 flask==2.3.3 werkzeug==2.3.7 && \
+            pip3 install pyjnius==1.4.2 requests==2.31.0
+        
+        # Accept Android licenses
+        RUN yes | sdkmanager --licenses || true
+        
+        WORKDIR /app
+        COPY . .
+        
+        # Build APK
+        RUN buildozer android debug --verbose
+        EOF
+        
+        # Build Docker image and extract APK
+        docker build -t wifishare-builder .
+        docker create --name temp-container wifishare-builder
+        docker cp temp-container:/app/bin ./
+        docker rm temp-container
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: wifishare-docker-apk
+        path: bin/*.apk
+        retention-days: 30
+    
+    - name: Show results
+      if: always()
+      run: |
+        ls -la bin/ || echo "No bin directory"
+        find . -name "*.apk" -type f || echo "No APK files"

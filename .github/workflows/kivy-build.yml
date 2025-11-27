@@ -1,0 +1,26 @@
+name: Kivy APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Build with Kivy Buildozer Action
+      uses: ArtemSBulgakov/buildozer-action@v1
+      id: buildozer
+      with:
+        command: buildozer android debug
+        buildozer_version: stable
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: wifishare-kivy-apk
+        path: ${{ steps.buildozer.outputs.filename }}
+        retention-days: 30

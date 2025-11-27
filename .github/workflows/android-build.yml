@@ -1,0 +1,96 @@
+name: Android APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    
+    - name: Setup Java 8
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '8'
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 29
+        build-tools: 29.0.3
+        ndk-version: 21.4.7075529
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -qq -y \
+          git zip unzip python3-pip \
+          autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev \
+          cmake libffi-dev libssl-dev \
+          build-essential python3-dev \
+          ccache
+    
+    - name: Install Python dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install buildozer==1.4.0
+        pip3 install cython==0.29.33
+        pip3 install kivy==2.1.0
+        pip3 install flask==2.3.3
+        pip3 install werkzeug==2.3.7
+        pip3 install pyjnius==1.4.2
+        pip3 install requests==2.31.0
+    
+    - name: Accept Android licenses
+      run: |
+        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
+    
+    - name: Cache Buildozer
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+    
+    - name: Build APK
+      run: |
+        # Set environment variables
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+        export PATH=$PATH:$ANDROID_SDK_ROOT/platform-tools
+        export PATH=$PATH:$ANDROID_SDK_ROOT/build-tools/29.0.3
+        
+        # Build APK
+        buildozer android debug --verbose
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: wifishare-android-apk
+        path: bin/*.apk
+        retention-days: 30
+    
+    - name: Show build results
+      if: always()
+      run: |
+        echo "=== Build Results ==="
+        ls -la bin/ || echo "No bin directory"
+        find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
+        echo "=== Environment ==="
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+        echo "JAVA_HOME: $JAVA_HOME"
