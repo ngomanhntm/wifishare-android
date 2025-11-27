@@ -1,0 +1,43 @@
+name: Build APK Simple
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install system deps
+      run: |
+        sudo apt update
+        sudo apt install -y git zip unzip openjdk-8-jdk python3-pip
+        sudo apt install -y autoconf libtool pkg-config zlib1g-dev
+        sudo apt install -y libncurses5-dev libncursesw5-dev libtinfo5
+        sudo apt install -y cmake libffi-dev libssl-dev build-essential
+    
+    - name: Install Python deps
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython
+        pip install kivy==2.1.0 flask==2.3.3 werkzeug==2.3.7 pyjnius requests
+    
+    - name: Build APK
+      run: |
+        buildozer android debug
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: wifishare-apk
+        path: bin/*.apk
