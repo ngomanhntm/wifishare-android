@@ -28,6 +28,7 @@ jobs:
             echo '=== Buildozer version ===' &&
             buildozer --version &&
             echo '=== Building APK ===' &&
+            export BUILDOZER_WARN_ON_ROOT=0 &&
             buildozer android debug &&
             echo '=== Build completed ===' &&
             ls -la bin/ || echo 'No bin directory'
